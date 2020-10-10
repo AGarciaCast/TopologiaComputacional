@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors
 import matplotlib as mpl
 import numpy as np
-
+import imageio
 
 def powerset(iterable):
     """
@@ -132,16 +132,17 @@ def alfaComplejo(puntos):
     
     #Introducimos los 1-simplices 
     for arista in Del.getCarasN(1):
-        print(arista)
+        #print(arista)
         p1 = puntos[arista[0]]
         p2 = puntos[arista[1]]
-        pMedio = ((p2[0] - p1[0]) / 2, (p2[1] - p1[1]) / 2)
+        pMedio = ((p2[0] + p1[0]) / 2, (p2[1] + p1[1]) / 2)
         d = distancia(p1, p2) / 2
         
         pesoTriangMin = -1
         for triang in Del.getCarasN(2):
+            #print(arista, triang)
             difTriangArista = set(triang) - set(arista)
-            
+                
             if len(difTriangArista) == 1 and distancia(puntos[difTriangArista.pop()], pMedio) < d:
                 pesoTriang = alfa.umbral(triang)
                 if pesoTriangMin < 0 or pesoTriang < pesoTriangMin:
@@ -172,6 +173,24 @@ def plotalpha(puntos, K):
     plt.show()
 
 
+def vietorisRips(puntos):
+    nsimplex=Complejo([tuple(range(len(puntos)))])
+    VR=Complejo(list(nsimplex.getCarasN(0)))
+    
+    for arista in nsimplex.getCarasN(1):
+        VR.setCaras([arista],0.5*distancia(puntos[arista[0]],puntos[arista[1]]))
+    
+    for i in range(2,len(puntos)):
+        for simplex in nsimplex.getCarasN(i):
+            lista=[]
+
+            for arista in combinations(simplex,2):
+                lista.append(0.5*distancia(puntos[arista[0]],puntos[arista[1]]))
+            VR.insert([simplex],max(lista))
+    return VR
+
+
+
 class Complejo():
 
     def __init__(self, carasMaximales=[]):
@@ -191,48 +210,34 @@ class Complejo():
         self.caras = set([(cara, 0.0) for cara in self.caras])
         
         self.carasOrd = sorted(list(self.caras), key=ordCaras)
-        self.ultimoPeso = 0.0
         
 
-    
     def setCaras(self, carasNuevas, peso=0.0):
         """
         Insertar nuevas caras y sus correspondientes subconjuntos con un peso dado
         """
-        
-        #Concatenamos el los conjuntos obtenidos de cada cara maximal
-        carasInsertadas = set()
-        for cara in carasNuevas:
-            #Obtenemos las caras que van a ser repetidas
-            carasRepetidas = set([(caraAnt[0], peso) for caraAnt in self.caras if caraAnt[0] in powerset(cara)])
-            
-            carasRepetidasMenorP = set()
-            carasRepetidasMasP = set()
-            for caraR in carasRepetidas:
-                umbralCara = self.umbral(caraR[0])
-                if caraR[1] < umbralCara:
-                    carasRepetidasMenorP.add((caraR[0], umbralCara))
-                else:
-                    carasRepetidasMasP.add(caraR)
+        for cara in carasNuevas: 
+            for caraGen in powerset(cara):
+                if caraGen == tuple():
+                    continue
+                
+                encontrado = False
+                for caraAnt in self.caras:
+                    if caraGen == caraAnt[0]:
+                        encontrado = True
+                        if caraAnt[1] > peso:
+                            self.caras -= {caraAnt}
+                            self.caras |= {(caraGen, peso)}
                         
-            #Añadimos las nuevas caras con su correspondiente peso
-            carasInsertadas |= set([(c, peso) for c in powerset(cara)]) - carasRepetidasMasP 
+                        break
             
-            self.caras -= carasRepetidasMenorP
-            #Quitamos las caras ya añadidas previamente para mantener su peso
-            self.caras |= carasInsertadas
+                if not encontrado:
+                    self.caras |= {(caraGen, peso)}
         
-        self.caras -= {((), peso)}
-        carasInsertadas -= {((), peso)}
-        
-        if self.ultimoPeso < peso:
-            self.carasOrd.extend(sorted(list(carasInsertadas), key=ordCaras))
-        else:
-            self.carasOrd.extend(list(carasInsertadas))
-            self.carasOrd = sorted(self.carasOrd, key=ordCaras)
-        
-        self.ultimoPeso = peso
-
+         
+        self.carasOrd = sorted(self.caras, key=ordCaras)
+                
+      
     
     def getCaras(self):
         """
@@ -250,7 +255,7 @@ class Complejo():
         """
         Devuelve el conjunto de las umbrales ordenados segun la filtracion
         """
-        return [cara[1] for cara in self.carasOrd]
+        return  list(dict.fromkeys([cara[1] for cara in self.carasOrd]))
     
     def umbral(self, cara):
         index = 0
@@ -427,7 +432,7 @@ if __name__ == "__main__":
     
     """
     
-  
+    
     points=np.array([(0.38021546727456423, 0.46419202339598786),
                      (0.7951628297672293, 0.49263630135869474),
                      (0.566623772375203, 0.038325621649018426),
@@ -438,6 +443,19 @@ if __name__ == "__main__":
                      (0.33244488399729255, 0.4524636520475205),
                      (0.11778991601260325, 0.6657734204021165),
                      (0.9384303415747769, 0.2313873874340855)])
+    
+    """
+    points =  np.array([[0.8957641450573793, 0.2950833519989374],
+              [0.028621391963087994, 0.9440875759025237],
+              [0.517621505875702, 0.1236620161847416],
+              [0.7871047164191424, 0.7777474116014623],
+              [0.21869796914805273, 0.7233589914276723],
+              [0.9891035292480995, 0.6032186214942837],
+              [0.30113764052453484, 0.613321425324272],
+              [0.18407448222466916, 0.7868606964403773],
+              [0.4496777667376678, 0.874366215574117],
+              [0.08225571534539433, 0.616710205071694]])
+    """
     plt.plot(points[:,0],points[:,1],'ko')
     plt.show()
     
@@ -447,29 +465,21 @@ if __name__ == "__main__":
     """
     alpha=alfaComplejo(points)
     print(alpha)
-    
+    i=0
+    images = [] 
     for valor in alpha.umbrales():
         print(valor)
         K=alpha.filtracion(valor)
         fig = voronoi_plot_2d(vor,show_vertices=False,line_width=2,line_colors='blue', lines_alpha = 0.6)
         plotalpha(points,K)
+        fig.savefig(f"imgTemp/im{i}.png")
+        images.append(imageio.imread(f"imgTemp/im{i}.png"))
+        i+=1
         plt.show()
     
-        #print(alpha.getCarasOrd())
+    imageio.mimsave('alphaGif/alpha.gif', images)
     
-
-    """
-    point1 = [1, 2]
-    point2 = [3, 4]
-
-    x_values = [point1[0], point2[0]]
     
-
-    y_values = [point1[1], point2[1]]
-
-
-    plt.plot(x_values, y_values)
-  """
 
     
     
