@@ -8,18 +8,50 @@ Created on Fri Sep 18 15:24:22 2020
 from itertools import combinations, chain
 import networkx as nx
 import matplotlib.pyplot as plt
+from scipy.spatial import Delaunay,Voronoi, voronoi_plot_2d
+import matplotlib.pyplot as plt
+import matplotlib.colors
+import matplotlib as mpl
+import numpy as np
 
 
 def powerset(iterable):
     """
     Optiene un chain con todos los subconjuntos del iterable
+    iterable: iterable
     """
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    #"powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
 
 def ordCaras(cara):
+    """
+    Relacion de orden de las caras de una filtracion
+    cara: tuple()
+    """
     return (cara[1], len(cara[0]) - 1, cara[0])
+
+
+def distancia(p1, p2):
+    p1Np = np.array(p1)
+    p2Np = np.array(p2)
+    return np.sqrt(np.dot(p1Np - p2Np, p1Np - p2Np))
+
+def radioCircunscrita(p1, p2, p3):
+    """
+    Dados los vertices de un triangulo obtenemos el radio de la cirunferencia
+    circuncentra.
+    p1: tuple
+    p2: tuple
+    p3: tuple
+    """
+    a = distancia(p1, p2)
+    b = distancia(p1, p3)
+    c = distancia(p2, p3)
+    
+    s = (a + b + c)/2
+    
+    return (a * b * c)/(4 * np.sqrt(s * (s - a) * (s - b) * (s - c)))
 
 
 def analisisComplejo(comp, simplice):
@@ -49,6 +81,95 @@ def analisisComplejo(comp, simplice):
     #1-esqueleto
     print(f"El 1-esqueleto es: {comp.k_esqueleto(1)}")
 
+def drawVor(puntos):
+    """
+    Representacion de las celdas de Voronoi de una nube de puntos
+    puntos: np.array()
+    """
+    vor=Voronoi(puntos)
+    voronoi_plot_2d(vor,show_vertices=False, line_width=2,
+                    line_colors='blue', line_alpha = 0.6)
+    plt.plot(puntos[:,0], puntos[:,1], 'ko')
+    return vor
+
+
+def delaunay(puntos):
+    """
+    Generar el triangulacion de Delaunay y su representacion junto
+    a las celdas de Voronoi
+    puntos: np.array()
+    """
+    drawVor(puntos)
+    
+    Del = Delaunay(puntos)
+    c=np.ones(len(puntos))
+    cmap = matplotlib.colors.ListedColormap("limegreen")
+    plt.tripcolor(puntos[:,0],puntos[:,1],Del.simplices, c, edgecolor="k", lw=2,
+                  cmap=cmap)
+    plt.plot(puntos[:,0], puntos[:,1], 'ko')
+    plt.show()
+ 
+    return Complejo([tuple(sorted(triangulo)) for triangulo in Del.simplices])
+
+
+
+def alfaComplejo(puntos):
+    """
+    Genera la filtracion de alfa complejos de la triangulacion de Delaunay
+    puntos: np.array()
+    """
+    Del = delaunay(puntos)
+    #Introducimos los 0-simplices
+    alfa = Complejo(Del.getCarasN(0))
+    
+    #Introducimos los 2-simplices
+    traingNuev = ((t, radioCircunscrita(puntos[t[0]], puntos[t[1]], puntos[t[2]])) 
+                  for t in Del.getCarasN(2))
+    
+    for t in traingNuev:
+        alfa.setCaras([t[0]], t[1])
+   
+    
+    #Introducimos los 1-simplices 
+    for arista in Del.getCarasN(1):
+        print(arista)
+        p1 = puntos[arista[0]]
+        p2 = puntos[arista[1]]
+        pMedio = ((p2[0] - p1[0]) / 2, (p2[1] - p1[1]) / 2)
+        d = distancia(p1, p2) / 2
+        
+        pesoTriangMin = -1
+        for triang in Del.getCarasN(2):
+            difTriangArista = set(triang) - set(arista)
+            
+            if len(difTriangArista) == 1 and distancia(puntos[difTriangArista.pop()], pMedio) < d:
+                pesoTriang = alfa.umbral(triang)
+                if pesoTriangMin < 0 or pesoTriang < pesoTriangMin:
+                    pesoTriangMin = pesoTriang
+            
+        alfa.setCaras([arista], d if pesoTriangMin < 0 else pesoTriangMin)
+        
+    return alfa
+
+def plotalpha(puntos, K):
+    dim =  K.dim()
+    
+    if dim > 1:
+        c=np.ones(len(puntos))
+        cmap = matplotlib.colors.ListedColormap("limegreen")
+        plt.tripcolor(puntos[:,0],puntos[:,1],list(K.getCarasN(2)), c, edgecolor="k", lw=2,
+                      cmap=cmap)
+    
+          
+    plt.plot(puntos[:,0], puntos[:,1], 'ko')
+    
+    if dim > 0:
+        for arista in K.getCarasN(1):
+            p1 = puntos[arista[0]]
+            p2 =  puntos[arista[1]]
+            plt.plot([p1[0],p2[0]], [p1[1], p2[1]], 'k')
+        
+    plt.show()
 
 
 class Complejo():
@@ -57,9 +178,7 @@ class Complejo():
         """
         Constructor del complejo simplicial abstracto a partir de sus caras maximales
         carasMaximales: list of tuples
-        """
-        self.carasMaximales = set(carasMaximales)
-        
+        """        
         #Concatenamos el los conjuntos obtenidos de cada cara maximal
         self.caras = set()
         for cara in carasMaximales:
@@ -86,8 +205,20 @@ class Complejo():
         for cara in carasNuevas:
             #Obtenemos las caras que van a ser repetidas
             carasRepetidas = set([(caraAnt[0], peso) for caraAnt in self.caras if caraAnt[0] in powerset(cara)])
+            
+            carasRepetidasMenorP = set()
+            carasRepetidasMasP = set()
+            for caraR in carasRepetidas:
+                umbralCara = self.umbral(caraR[0])
+                if caraR[1] < umbralCara:
+                    carasRepetidasMenorP.add((caraR[0], umbralCara))
+                else:
+                    carasRepetidasMasP.add(caraR)
+                        
             #Añadimos las nuevas caras con su correspondiente peso
-            carasInsertadas |= set([(c, peso) for c in powerset(cara)]) - carasRepetidas 
+            carasInsertadas |= set([(c, peso) for c in powerset(cara)]) - carasRepetidasMasP 
+            
+            self.caras -= carasRepetidasMenorP
             #Quitamos las caras ya añadidas previamente para mantener su peso
             self.caras |= carasInsertadas
         
@@ -115,19 +246,26 @@ class Complejo():
         """
         return [cara[0] for cara in self.carasOrd]
     
+    def umbrales(self):
+        """
+        Devuelve el conjunto de las umbrales ordenados segun la filtracion
+        """
+        return [cara[1] for cara in self.carasOrd]
+    
     def umbral(self, cara):
         index = 0
         encontrado = False
         while index < len(self.carasOrd) and not encontrado:
             encontrado = self.carasOrd[index][0] == cara
-            index += 1
+            index += int(not encontrado)
+        
         return self.carasOrd[index][1] if encontrado else None
     
     def dim(self):
         """
         Devuelve la dimensión del complejo simplicial
         """
-        return max([len(caras) for caras in self.carasMaximales]) - 1
+        return max([len(caras[0]) for caras in self.caras]) - 1
     
     def getCarasN(self, dimension):
         """
@@ -200,13 +338,12 @@ class Complejo():
             result.setCaras([cara], peso)
             
         return result
-            
     
     def __str__(self):
         return "Caras: " + str(self.caras)
 
 if __name__ == "__main__":
-    
+    """
     comp1 = Complejo([(0,1,2,3)])
     print("-------------COMP1-------------")
     analisisComplejo(comp1, set((0, 1)))
@@ -287,11 +424,52 @@ if __name__ == "__main__":
     
     #Caras ordenedas por filtracion
     print(f"Caras ordenadas segun las filtraciones: {comp13.getCarasOrd()}")
+    
+    """
+    
+  
+    points=np.array([(0.38021546727456423, 0.46419202339598786),
+                     (0.7951628297672293, 0.49263630135869474),
+                     (0.566623772375203, 0.038325621649018426),
+                     (0.3369306814864865, 0.7103735061134965), 
+                     (0.08272837815822842, 0.2263273314352896),
+                     (0.5180166301873989, 0.6271769943824689),
+                     (0.33691411899985035, 0.8402045183219995),
+                     (0.33244488399729255, 0.4524636520475205),
+                     (0.11778991601260325, 0.6657734204021165),
+                     (0.9384303415747769, 0.2313873874340855)])
+    plt.plot(points[:,0],points[:,1],'ko')
+    plt.show()
+    
+    vor = drawVor(points)
+    """
+    delaunay(points)
+    """
+    alpha=alfaComplejo(points)
+    print(alpha)
+    
+    for valor in alpha.umbrales():
+        print(valor)
+        K=alpha.filtracion(valor)
+        fig = voronoi_plot_2d(vor,show_vertices=False,line_width=2,line_colors='blue', lines_alpha = 0.6)
+        plotalpha(points,K)
+        plt.show()
+    
+        #print(alpha.getCarasOrd())
+    
+
+    """
+    point1 = [1, 2]
+    point2 = [3, 4]
+
+    x_values = [point1[0], point2[0]]
+    
+
+    y_values = [point1[1], point2[1]]
 
 
-
-
-
+    plt.plot(x_values, y_values)
+  """
 
     
     
