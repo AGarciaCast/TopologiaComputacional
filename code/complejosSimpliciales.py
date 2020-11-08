@@ -334,7 +334,7 @@ class Complejo():
         self.caras = set()
         for cara in carasMaximales:
             if cara not in self.caras:
-                self.caras |= set(powerset(cara))
+                self.caras |= set(tuple(sorted(list(c))) for c in powerset(cara))
         # Quitamos el conjunto vacio
         self.caras -= {()}
 
@@ -351,7 +351,8 @@ class Complejo():
         peso: float. Por defecto 0.0.
         """
         for cara in carasNuevas:
-            for caraGen in powerset(cara):
+            powerCaras = set(tuple(sorted(list(c))) for c in powerset(cara))
+            for caraGen in powerCaras:
                 if caraGen == tuple():
                     continue
 
@@ -481,6 +482,11 @@ class Complejo():
             result.setCaras([cara], peso)
 
         return result
+
+    def borde(self):
+        """Funcion borde."""
+        d = self.dim()
+        return list(chain.from_iterable(combinations(s, d) for s in self.getCarasN(d)))
 
     def matrizBorde(self, p):
         """
@@ -630,9 +636,9 @@ if __name__ == "__main__":
     # Caras ordenedas por filtracion
     print(f"Caras ordenadas segun las filtraciones: {comp13.getCarasOrd()}")
 
-    """
 
-    """
+
+
     points = np.array([(0.38021546727456423, 0.46419202339598786),
                        (0.7951628297672293, 0.49263630135869474),
                        (0.566623772375203, 0.038325621649018426),
@@ -656,8 +662,12 @@ if __name__ == "__main__":
                        [0.08225571534539433, 0.616710205071694]])
 
     curva1 = [4 * sy.sin(t), 9 * sy.cos(t)]
+    points = puntosCurvaRuido(curva1, t, 0, 2*np.pi, numPuntos=30)
+
     curva2 = [1 + 3 * t**2, t**3 - 2 * t]
+
     points = puntosCurvaRuido(curva2, t, -2, 2, numPuntos=30)
+
     print(points)
 
     plt.plot(points[:, 0], points[:, 1], 'ko')
@@ -684,3 +694,100 @@ if __name__ == "__main__":
 
     imageio.mimsave('alphaGif/alpha.gif', images)
     """
+
+    comp1 = Complejo([(0, 1, 2, 3)])
+    print(f"Los num de Betti del tetraedro son: {comp1.allBettis()}")
+    print(f"Los num de Betti del borde del tetraedro son: {Complejo(comp1.borde()).allBettis()}")
+
+    toro1 = Complejo([(1, 7, 8), (1, 2, 8), (2, 8, 9), (2, 3, 9), (3, 9, 7), (3, 1, 7),
+                      (4, 1, 2), (4, 5, 2), (5, 2, 3), (5, 6, 3), (6, 3, 1), (6, 4, 1),
+                      (7, 4, 5), (7, 8, 5), (8, 5, 6), (8, 9, 6), (9, 6, 4), (9, 7, 4)])
+    print(f"Los num de Betti del toro son: {toro1.allBettis()}")
+    toro2 = Complejo([(1, 7, 3), (3, 4, 6), (6, 4, 7), (1, 2, 3), (2, 3, 6), (6, 7, 1),
+                      (2, 5, 6), (5, 6, 1), (7, 2, 5), (7, 3, 5), (3, 4, 5), (5, 4, 1),
+                      (1, 4, 2), (2, 4, 7)])
+    print(f"Los num de Betti del toro con triang minimal son: {toro2.allBettis()}")
+
+    klein = Complejo([(1, 7, 8), (1, 2, 8), (2, 8, 9), (2, 3, 9), (3, 9, 7), (3, 4, 7),
+                      (1, 4, 2), (4, 2, 5), (2, 3, 5), (3, 5, 6), (3, 4, 6), (1, 4, 6),
+                      (4, 5, 7), (7, 5, 8), (5, 6, 8), (6, 8, 9), (6, 1, 9), (1, 9, 7)])
+    print(f"Los num de Betti de la botella de Klein son: {klein.allBettis()}")
+
+    anillo = Complejo([(0, 1, 3), (1, 3, 4), (1, 2, 4), (2, 4, 5), (0, 2, 5), (0, 3, 5)])
+    print(f"Los num de Betti del anillo son: {anillo.allBettis()}")
+
+    planoProy = Complejo([(1, 2, 10), (2, 3, 10), (3, 9, 10), (3, 4, 9), (4, 8, 9), (4, 5, 8),
+                          (2, 3, 5), (3, 5, 6), (3, 6, 4), (4, 6, 7), (4, 5, 7), (2, 5, 7),
+                          (5, 6, 8), (6, 8, 9), (6, 7, 9), (7, 9, 10), (2, 7, 10), (1, 2, 10)])
+    print(f"Los num de Betti del plano proyectivo son: {planoProy.allBettis()}")
+
+    asno = Complejo([(1, 3, 5), (1, 5, 6), (1, 3, 6), (2, 3, 5), (2, 4, 5), (4, 5, 6),
+                     (3, 6, 7), (2, 3, 7), (6, 7, 8), (6, 4, 8), (1, 2, 4), (1, 3, 4),
+                     (3, 4, 8), (2, 3, 8), (1, 2, 8), (1, 7, 8), (1, 2, 7)])
+    print(f"Los num de Betti del sombrero del asno son: {asno.allBettis()}")
+
+    dobeToro = Complejo([(1, 9, 7), (1, 7, 3), (1, 4, 3), (4, 6, 3), (6, 3, 5),
+                         (6, 8, 5), (8, 5, 7), (8, 10, 7), (10, 7, 9), (7, 3, 11),
+                         (11, 3, 9), (3, 5, 9), (5, 9, 1), (1, 5, 11), (5, 7, 11),
+                         (10, 9, 0), (0, 9, 11), (0, 11, 2), (2, 11, 1), (1, 2, 4),
+                         (2, 10, 4), (10, 8, 4), (2, 6, 10), (2, 6, 8), (2, 0, 8),
+                         (0, 4, 8), (0, 4, 6), (0, 6, 10)])
+    print(f"Los num de Betti del doble toro son: {dobeToro.allBettis()}")
+
+    comp3 = Complejo([(0, 1), (1, 2, 3, 4), (4, 5), (5, 6), (4, 6), (6, 7, 8), (8, 9)])
+    print(f"Los num de Betti del siguiente complejo son: {comp3.allBettis()}")
+
+
+    curva1 = [4 * sy.sin(t), 9 * sy.cos(t)]
+    points = puntosCurvaRuido(curva1, t, 0, 2*np.pi, numPuntos=30)
+
+    alpha = alfaComplejo(points)
+    K = alpha.filtracion(3.6)
+    print(f"Los num de Betti del siguiente alpha complejo son: {K.allBettis()}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
