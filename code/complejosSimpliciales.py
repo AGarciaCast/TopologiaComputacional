@@ -343,6 +343,8 @@ class Complejo():
 
         self.carasOrd = sorted(list(self.caras), key=ordCaras)
 
+        self.bettiNums = [-1 for a in range(self.dim() + 1)]
+
     def setCaras(self, carasNuevas, peso=0.0):
         """
         Insertar nuevas caras y sus correspondientes subconjuntos con un peso dado.
@@ -350,6 +352,10 @@ class Complejo():
         carasNuevas: list(tuple).
         peso: float. Por defecto 0.0.
         """
+        diffDim = max([len(cara) - 1 for cara in carasNuevas]) - self.dim()
+        if diffDim > 0:
+            self.bettiNums.extend(-1 for i in range(diffDim))
+
         for cara in carasNuevas:
             powerCaras = set(tuple(sorted(list(c))) for c in powerset(cara))
             for caraGen in powerCaras:
@@ -399,7 +405,7 @@ class Complejo():
 
     def dim(self):
         """Devuelve la dimensión del complejo simplicial."""
-        return max([len(caras[0]) for caras in self.caras]) - 1
+        return max([len(caras[0]) for caras in self.caras]) - 1 if self.caras != set() else 0
 
     def getCarasN(self, dimension):
         """
@@ -517,36 +523,72 @@ class Complejo():
 
         return m
 
-    def betti(self, p):
+    def betti(self, p, incremental=False):
         """
         Calculo del número de p de Betti.
 
         p: int.
         """
-        if p == 0:
-            Zp = len(self.getCarasN(0))
+        if incremental and self.dim() == 2:
+            # Algoritmo incremental
+            b = self.allBettis(incremental=True)[p]
+
         else:
-            Mp = normSmithZ2(self.matrizBorde(p))
-            Zp = Mp.shape[1] - matrix_rank(Mp)
+            if p == 0:
+                Zp = len(self.getCarasN(0))
+            else:
+                Mp = normSmithZ2(self.matrizBorde(p))
+                Zp = Mp.shape[1] - matrix_rank(Mp)
 
-        Bp = matrix_rank(normSmithZ2(self.matrizBorde(p + 1)))
+            Bp = matrix_rank(normSmithZ2(self.matrizBorde(p + 1)))
 
-        return Zp - Bp
+            b = Zp - Bp
 
-    def allBettis(self):
+            self.bettiNums[p] = b
+
+        return b
+
+    def allBettis(self, incremental=False):
         """Calculo de todos los números de Betti."""
-        Zps = np.array([len(self.getCarasN(0))], dtype=int)
-        Bps = np.array([], dtype=int)
-        d = self.dim()
-        for p in range(1, d + 2):
-            Mp = normSmithZ2(self.matrizBorde(p))
+        if incremental and self.dim() == 2:
+            # Puede que el resultado sea erroneo si el complejo no está contenido en R2
+            # Algoritmo incremental
+            k1Graph = nx.Graph()
+            nodos = self.getCarasN(0)
+            k1Graph.add_nodes_from([vertice[0] for vertice in nodos])
 
-            if p <= d:
-                Zps = np.append(Zps, Mp.shape[1] - matrix_rank(Mp))
+            self.bettiNums[0] = len(nodos)
+            self.bettiNums[1] = 0
+            numCompConexas = self.bettiNums[0]
 
-            Bps = np.append(Bps, matrix_rank(Mp))
+            for arista in self.getCarasN(1):
+                k1Graph.add_edge(*arista)
+                newNumCompConexas = nx.number_connected_components(k1Graph)
+                if nx.number_connected_components(k1Graph) < numCompConexas:
+                    numCompConexas = newNumCompConexas
+                    self.bettiNums[0] -= 1
+                else:
+                    self.bettiNums[1] += 1
 
-        return list(Zps - Bps)
+            self.bettiNums[1] -= len(self.getCarasN(2))
+            self.bettiNums[2] = 0
+
+        elif -1 in self.bettiNums:
+            # Calculo con las matrices borde
+            Zps = np.array([len(self.getCarasN(0))], dtype=int)
+            Bps = np.array([], dtype=int)
+            d = self.dim()
+            for p in range(1, d + 2):
+                Mp = normSmithZ2(self.matrizBorde(p))
+
+                if p <= d:
+                    Zps = np.append(Zps, Mp.shape[1] - matrix_rank(Mp))
+
+                Bps = np.append(Bps, matrix_rank(Mp))
+
+            self.bettiNums = list(Zps - Bps)
+
+        return self.bettiNums
 
     def __str__(self):
         """El toString del complejo."""
@@ -715,6 +757,7 @@ if __name__ == "__main__":
 
     anillo = Complejo([(0, 1, 3), (1, 3, 4), (1, 2, 4), (2, 4, 5), (0, 2, 5), (0, 3, 5)])
     print(f"Los num de Betti del anillo son: {anillo.allBettis()}")
+    print(f"Los num de Betti del anillo son (algoritmo incremental): {anillo.allBettis(incremental=True)}")
 
     planoProy = Complejo([(1, 2, 10), (2, 3, 10), (3, 9, 10), (3, 4, 9), (4, 8, 9), (4, 5, 8),
                           (2, 3, 5), (3, 5, 6), (3, 6, 4), (4, 6, 7), (4, 5, 7), (2, 5, 7),
@@ -725,6 +768,7 @@ if __name__ == "__main__":
                      (3, 6, 7), (2, 3, 7), (6, 7, 8), (6, 4, 8), (1, 2, 4), (1, 3, 4),
                      (3, 4, 8), (2, 3, 8), (1, 2, 8), (1, 7, 8), (1, 2, 7)])
     print(f"Los num de Betti del sombrero del asno son: {asno.allBettis()}")
+    print(f"Los num de Betti del sombrero del asno son (algoritmo incremental): {asno.allBettis(incremental=True)}")
 
     dobeToro = Complejo([(1, 9, 7), (1, 7, 3), (1, 4, 3), (4, 6, 3), (6, 3, 5),
                          (6, 8, 5), (8, 5, 7), (8, 10, 7), (10, 7, 9), (7, 3, 11),
@@ -737,13 +781,13 @@ if __name__ == "__main__":
     comp3 = Complejo([(0, 1), (1, 2, 3, 4), (4, 5), (5, 6), (4, 6), (6, 7, 8), (8, 9)])
     print(f"Los num de Betti del siguiente complejo son: {comp3.allBettis()}")
 
-
     curva1 = [4 * sy.sin(t), 9 * sy.cos(t)]
     points = puntosCurvaRuido(curva1, t, 0, 2*np.pi, numPuntos=30)
 
     alpha = alfaComplejo(points)
     K = alpha.filtracion(3.6)
     print(f"Los num de Betti del siguiente alpha complejo son: {K.allBettis()}")
+    print(f"Los num de Betti del siguiente alpha complejo son (algoritmo incremental): {K.allBettis(incremental=True)}")
 
 
 
