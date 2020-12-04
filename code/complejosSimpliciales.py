@@ -14,6 +14,7 @@ import numpy as np
 from numpy.linalg import matrix_rank
 import imageio
 import sympy as sy
+import math
 
 t = sy.symbols('t', real=True)
 
@@ -40,7 +41,14 @@ def puntosCurvaRuido(curva, t, t0, t1, numPuntos=10, mu=0, sigma=0.1):
 
     return puntosCurva + ruido
 
-
+def low(v):
+    for i in range(len(v)-1, -1, -1):
+        if (v[i] == 1):
+            return i
+        
+    return -1
+        
+    
 def pivotar(M, k, m):
     """
     Pivota en el elemento (k,m) intercambiando filas y columnas.
@@ -522,7 +530,75 @@ class Complejo():
                         m[i, j] = int(set(carasP_1[i]).issubset(caraP))
 
         return m
+    
+    def matrizBordeGeneralizada(self):
+        """
+        Calculo de la matriz borde generalizada.
 
+        """
+
+        caras = self.getCarasOrd()
+        caras1 = caras.copy()
+        
+        m = np.zeros((len(caras), len(caras1)), dtype=int)
+        
+        for j in range(len(caras)):
+            cara = set(caras[j])
+            for i in range(len(caras1)):
+                m[i, j] = int(len(cara) - len(caras1[i]) == 1 and set(caras1[i]) != cara and set(caras1[i]).issubset(cara))
+                
+        return m
+    
+    
+    def algoritmoPersistencia(self):
+        M = self.matrizBordeGeneralizada()
+        lowsArray = [-1 for i in range(len(M))]  
+        
+        for j in range(len(M)):
+            lowsArray[j] = low(M[:, j])
+            #Comportamiento do-while
+            mismoLow = True
+            while mismoLow and lowsArray[j] >= 0: 
+                mismoLow = False
+                for k in range(j-1, -1, -1):
+                    if lowsArray[k] == lowsArray[j]:               
+                        sumaColZ2(M, k, j)
+                        mismoLow = True
+                        lowsArray[j] = low(M[:, j])
+                        break
+                    
+        return M, lowsArray
+    
+    
+    def persistencia(self):
+        _, lowsArray = self.algoritmoPersistencia()
+        dgm = list()
+        numCarasAntiguo = 0
+        numCarasInicial = len(self.getCarasN(0))
+        for i in range(1, self.dim() + 1):
+            dgmi = list()
+            numCaras = len(self.getCarasN(i))
+            j = numCarasInicial
+            while j < numCarasInicial + numCaras:
+                if lowsArray[j] >= 0:
+                    dgmi.append((self.carasOrd[lowsArray[j]][1], self.carasOrd[j][1]))  
+                    # Marca de que ya se ha muerto su clase de equivalencia
+                    lowsArray[lowsArray[j]] = -2
+                j = j + 1
+
+            for k in range(numCarasAntiguo, numCarasInicial):
+                if lowsArray[k] == -1:
+                    dgmi.append((self.carasOrd[k][1], math.inf))
+                    # Marca de que ya se ha anadido su persistencia
+                    lowsArray[k] = -2
+                    
+            dgm.append(dgmi)
+            numCarasInicial = j
+            numCarasAntiguo = numCarasInicial
+        
+        return dgm
+    
+    
     def betti(self, p, incremental=False):
         """
         Calculo del número de p de Betti.
@@ -790,18 +866,79 @@ if __name__ == "__main__":
     print(f"Los num de Betti del siguiente alpha complejo son (algoritmo incremental): {K.allBettis(incremental=True)}")
 
 
+    points = np.array([(-2, 2),
+                       (1.5, 2.2),
+                       (2.5, -0.5),
+                       (-1.4, -0.7),
+                       (1.2, -1.87)])
+    alpha = alfaComplejo(points)
 
+    vor = drawVor(points)
+    i = 0
+    images = []
+    for valor in alpha.umbrales():
+        # print(valor)
+        K = alpha.filtracion(valor)
+        fig = voronoi_plot_2d(vor, show_vertices=False, line_width=2, line_colors='blue', lines_alpha=0.6)
+        plotalpha(points, K)
+        plt.title("Radio: " + str(valor))
+        #fig.savefig(f"imgTemp/im{i}.png")
+        #images.append(imageio.imread(f"imgTemp/im{i}.png"))
+        i += 1
+        plt.show()
 
+    #imageio.mimsave('alphaGif/alpha.gif', images)
 
+'''
+Out[49]: 
+(array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
+    
+ [-1, -1, -1, -1, -1, 4, 3, 2, 1, -1, -1, -1, 11, 10, 9])
 
+alpha2.matrizBordeGeneralizada()
+Out[50]: 
+array([[0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0],
+       [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+    
+    Out[64]: 
+[[(0.0, 0.9443119188064927),
+  (0.0, 1.3829316685939332),
+  (0.0, 1.4255612929649848),
+  (0.0, 1.439618004888797)
+  (0.0, inf)],
+    
+ [(2.068455460956951, 2.068455460956951),
+  (2.0506096654409878, 2.0776755129687805),
+  (1.7528548142958105, 2.148797377140489)]]
 
-
-
-
-
-
-
-
+'''
 
 
 
