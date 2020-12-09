@@ -15,7 +15,13 @@ from numpy.linalg import matrix_rank
 import imageio
 import sympy as sy
 import math
+import plotly.graph_objects as go
+from plotly.offline import plot
 
+
+
+
+# variable curvas
 t = sy.symbols('t', real=True)
 
 
@@ -592,6 +598,48 @@ class Complejo():
             numCarasAntiguo = numCarasInicial
 
         return dgm
+
+    def diagramaPersistencia(self):
+        dmg = self.persistencia()
+        fig, ax = plt.subplots(dpi=1200)
+        maxDeath = -1
+        infinity = list()
+        birth = list()
+        death = list()
+        for i in range(len(dmg)):
+            dmgi = dmg[i]
+            print(dmgi)
+            birthI = np.array([c[0] for c in dmgi if c[1]!=math.inf])
+            deathI = np.array([c[1] for c in dmgi if c[1]!=math.inf])
+            infinity.append([c[0] for c in dmgi if c[1]==math.inf])
+            maxDeath = max(maxDeath, int(np.amax(deathI)) + 1)
+            deathI[deathI < 0] = maxDeath
+            print(birthI,deathI)
+            birth.append(birthI)
+            death.append(deathI)
+
+        print(birth,death)
+        for i in range(len(infinity)):
+            if infinity[i] != []:
+                birth[i] = np.append(birth[i], np.array(infinity[i]))
+                death[i] =  np.append(death[i], np.array([maxDeath for j in range(len(infinity[i]))]))
+            print(birth[i], death[i])
+            ax.scatter(x=birth[i], y=death[i],alpha=0.90, label=r"$H_{}$".format(i), zorder=10)
+
+        lims = [
+                np.min([ax.get_xlim(), ax.get_ylim()]),  # min of both axes
+                np.max([ax.get_xlim(), ax.get_ylim()]),  # max of both axes
+                ]
+        ax.set_xlabel("Birth Time")
+        ax.set_ylabel("Death Time")
+        ax.plot([lims[0], lims[1]],[lims[0], lims[1]], "k--", zorder=0)
+        ax.plot([lims[0], lims[1]],[maxDeath,maxDeath], "k--", label=r"$\infty$", zorder=0)
+        ax.legend()
+        ax.set_xlim(lims)
+        ax.set_ylim(ymin=lims[0])
+
+
+        return 0
 
     def betti(self, p, incremental=False):
         """
