@@ -609,7 +609,6 @@ class Complejo():
             deathI = np.array([c[1] for c in dmgi if c[1] != math.inf])
             infinity.append([c[0] for c in dmgi if c[1] == math.inf])
             maxDeath = max(maxDeath, int(np.amax(deathI)) + 1)
-            deathI[deathI < 0] = maxDeath
             birth.append(birthI)
             death.append(deathI)
 
@@ -634,7 +633,45 @@ class Complejo():
 
         fig.savefig("persistencia/perDiag.png", dpi=300)
 
-        return 0
+    def codigoBarrasPers(self):
+        dmg = self.persistencia()
+        fig, ax = plt.subplots(nrows=len(dmg), sharex=True, dpi=300)
+        ax = ax[::-1]
+        maxDeath = -1
+        infinity = list()
+        birth = list()
+        death = list()
+        for i in range(len(dmg)):
+            dmgi = dmg[i]
+            print(dmgi)
+            birthI = np.array([c[0] for c in dmgi if c[1] != math.inf])
+            deathI = np.array([c[1] for c in dmgi if c[1] != math.inf])
+            infinity.append([c[0] for c in dmgi if c[1] == math.inf])
+            maxDeath = max(maxDeath, int(np.amax(deathI)) + 1)
+            birth.append(birthI)
+            death.append(deathI)
+
+        for i in range(len(infinity)):
+            if infinity[i] != []:
+                birth[i] = np.append(birth[i], np.array(infinity[i]))
+                death[i] = np.append(death[i], np.array([maxDeath for j in range(len(infinity[i]))]))
+
+            diff = death[i] - birth[i]
+            diff[diff<=0] = 0.005
+            ax[i].barh(y=np.arange(len(birth[i])),
+                       width=diff,
+                       height=0.2,
+                       align="center",
+                       left=birth[i],
+                       label=r"$H_{}$".format(i),
+                       color=f"C{i}",
+                       linewidth=0)
+
+            ax[i].get_yaxis().set_ticks([])
+            ax[i].set_ylabel(r"$H_{}$".format(i), rotation="horizontal")
+            ax[i].get_yaxis().set_label_coords(-0.035,0.5)
+
+        fig.savefig("persistencia/perBarras.png", dpi=300)
 
     def betti(self, p, incremental=False):
         """
@@ -919,12 +956,12 @@ if __name__ == "__main__":
         fig = voronoi_plot_2d(vor, show_vertices=False, line_width=2, line_colors='blue', lines_alpha=0.6)
         plotalpha(points, K)
         plt.title(r"$r={}$".format(str(valor)))
-        fig.savefig(f"imgTemp/im{i}.png", dpi=300)
-        images.append(imageio.imread(f"imgTemp/im{i}.png"))
+        #fig.savefig(f"imgTemp/im{i}.png", dpi=300)
+        #images.append(imageio.imread(f"imgTemp/im{i}.png"))
         i += 1
         plt.show()
 
-    imageio.mimsave('alphaGif/alpha.gif', images)
+    #imageio.mimsave('alphaGif/alpha.gif', images)
 """
 Out[49]:
 (array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
