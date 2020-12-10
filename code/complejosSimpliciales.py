@@ -15,10 +15,6 @@ from numpy.linalg import matrix_rank
 import imageio
 import sympy as sy
 import math
-import plotly.graph_objects as go
-from plotly.offline import plot
-
-
 
 
 # variable curvas
@@ -601,7 +597,7 @@ class Complejo():
 
     def diagramaPersistencia(self):
         dmg = self.persistencia()
-        fig, ax = plt.subplots(dpi=1200)
+        fig, ax = plt.subplots(dpi=300)
         maxDeath = -1
         infinity = list()
         birth = list()
@@ -609,22 +605,20 @@ class Complejo():
         for i in range(len(dmg)):
             dmgi = dmg[i]
             print(dmgi)
-            birthI = np.array([c[0] for c in dmgi if c[1]!=math.inf])
-            deathI = np.array([c[1] for c in dmgi if c[1]!=math.inf])
-            infinity.append([c[0] for c in dmgi if c[1]==math.inf])
+            birthI = np.array([c[0] for c in dmgi if c[1] != math.inf])
+            deathI = np.array([c[1] for c in dmgi if c[1] != math.inf])
+            infinity.append([c[0] for c in dmgi if c[1] == math.inf])
             maxDeath = max(maxDeath, int(np.amax(deathI)) + 1)
             deathI[deathI < 0] = maxDeath
-            print(birthI,deathI)
             birth.append(birthI)
             death.append(deathI)
 
-        print(birth,death)
         for i in range(len(infinity)):
             if infinity[i] != []:
                 birth[i] = np.append(birth[i], np.array(infinity[i]))
-                death[i] =  np.append(death[i], np.array([maxDeath for j in range(len(infinity[i]))]))
-            print(birth[i], death[i])
-            ax.scatter(x=birth[i], y=death[i],alpha=0.90, label=r"$H_{}$".format(i), zorder=10)
+                death[i] = np.append(death[i], np.array([maxDeath for j in range(len(infinity[i]))]))
+
+            ax.scatter(x=birth[i], y=death[i], alpha=0.90, label=r"$H_{}$".format(i), zorder=10)
 
         lims = [
                 np.min([ax.get_xlim(), ax.get_ylim()]),  # min of both axes
@@ -632,12 +626,13 @@ class Complejo():
                 ]
         ax.set_xlabel("Birth Time")
         ax.set_ylabel("Death Time")
-        ax.plot([lims[0], lims[1]],[lims[0], lims[1]], "k--", zorder=0)
-        ax.plot([lims[0], lims[1]],[maxDeath,maxDeath], "k--", label=r"$\infty$", zorder=0)
+        ax.plot([lims[0], lims[1]], [lims[0], lims[1]], "--",  color=(0.3, 0.3, 0.3), zorder=0)
+        ax.plot([lims[0], lims[1]], [maxDeath, maxDeath], "k--", label=r"$\infty$", zorder=0)
         ax.legend()
         ax.set_xlim(lims)
         ax.set_ylim(ymin=lims[0])
 
+        fig.savefig("persistencia/perDiag.png", dpi=300)
 
         return 0
 
@@ -846,14 +841,14 @@ if __name__ == "__main__":
         K = alpha.filtracion(valor)
         fig = voronoi_plot_2d(vor, show_vertices=False, line_width=2, line_colors='blue', lines_alpha=0.6)
         plotalpha(points, K)
-        plt.title("Radio: " + str(valor))
+        plt.title(r"$r={}$".format(str(valor)))
         fig.savefig(f"imgTemp/im{i}.png")
         images.append(imageio.imread(f"imgTemp/im{i}.png"))
         i += 1
         plt.show()
 
     imageio.mimsave('alphaGif/alpha.gif', images)
-  """
+
 
     comp1 = Complejo([(0, 1, 2, 3)])
     print(f"Los num de Betti del tetraedro son: {comp1.allBettis()}")
@@ -906,6 +901,7 @@ if __name__ == "__main__":
     K = alpha.filtracion(3.6)
     print(f"Los num de Betti del siguiente alpha complejo son: {K.allBettis()}")
     print(f"Los num de Betti del siguiente alpha complejo son (algoritmo incremental): {K.allBettis(incremental=True)}")
+    """
 
     points = np.array([(-2, 2),
                        (1.5, 2.2),
@@ -922,13 +918,13 @@ if __name__ == "__main__":
         K = alpha.filtracion(valor)
         fig = voronoi_plot_2d(vor, show_vertices=False, line_width=2, line_colors='blue', lines_alpha=0.6)
         plotalpha(points, K)
-        plt.title("Radio: " + str(valor))
-        # fig.savefig(f"imgTemp/im{i}.png")
-        # images.append(imageio.imread(f"imgTemp/im{i}.png"))
+        plt.title(r"$r={}$".format(str(valor)))
+        fig.savefig(f"imgTemp/im{i}.png", dpi=300)
+        images.append(imageio.imread(f"imgTemp/im{i}.png"))
         i += 1
         plt.show()
 
-    # imageio.mimsave('alphaGif/alpha.gif', images)
+    imageio.mimsave('alphaGif/alpha.gif', images)
 """
 Out[49]:
 (array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
