@@ -656,8 +656,18 @@ class Complejo():
                 birth[i] = np.append(birth[i], np.array(infinity[i]))
                 death[i] = np.append(death[i], np.array([maxDeath for j in range(len(infinity[i]))]))
 
+            #Elimina las parejas que nacen y mueren a la vez
+            n = 0
+            while n < len(birth[i]):
+                print(i, n, birth[i][n])
+                if birth[i][n] == death[i][n]:
+                    birth[i] = np.delete(birth[i], n)
+                    death[i] = np.delete(death[i], n)
+                    n = n-1
+                n = n+1
+            
             diff = death[i] - birth[i]
-            diff[diff<=0] = 0.005
+            #diff[diff<=0] = 0.005 
             ax[i].barh(y=np.arange(len(birth[i])),
                        width=diff,
                        height=0.2,
