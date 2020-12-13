@@ -15,6 +15,7 @@ from numpy.linalg import matrix_rank
 import imageio
 import sympy as sy
 import math
+import os
 
 
 # variable curvas
@@ -45,6 +46,11 @@ def puntosCurvaRuido(curva, t, t0, t1, numPuntos=10, mu=0, sigma=0.1):
 
 
 def low(v):
+    """
+    Cálculo del low de una columna. Devuelve -1 si el vector es nulo.
+    
+    v: np.array.
+    """
     for i in range(len(v)-1, -1, -1):
         if (v[i] == 1):
             return i
@@ -327,7 +333,7 @@ def vietorisRips(puntos):
 
             for arista in combinations(simplex, 2):
                 lista.append(0.5 * distancia(puntos[arista[0]], puntos[arista[1]]))
-            VR.insert([simplex], max(lista))
+            VR.setCaras([simplex], max(lista))
 
     return VR
 
@@ -549,6 +555,7 @@ class Complejo():
         return m
 
     def algoritmoPersistencia(self):
+        """Realiza el algoritmo de persistencia sobre la matriz borde generalizada."""
         M = self.matrizBordeGeneralizada()
         lowsArray = [-1 for i in range(len(M))]
 
@@ -568,6 +575,7 @@ class Complejo():
         return M, lowsArray
 
     def persistencia(self):
+        """Cálculo de los puntos del diagrama de persistencia."""
         _, lowsArray = self.algoritmoPersistencia()
         dgm = list()
         numCarasAntiguo = 0
@@ -596,6 +604,7 @@ class Complejo():
         return dgm
 
     def diagramaPersistencia(self):
+        """Representación del diagrama de persistencia."""
         dmg = self.persistencia()
         fig, ax = plt.subplots(dpi=300)
         maxDeath = -1
@@ -630,10 +639,14 @@ class Complejo():
         ax.legend()
         ax.set_xlim(lims)
         ax.set_ylim(ymin=lims[0])
-
+        
+        if not os.path.exists("persistencia/"):
+            os.makedirs("persistencia/")
+            
         fig.savefig("persistencia/perDiag.png", dpi=300)
 
     def codigoBarrasPers(self):
+        """Representación de la persistencia en formato de código de barras."""
         dmg = self.persistencia()
         fig, ax = plt.subplots(nrows=len(dmg), sharex=True, dpi=300)
         ax = ax[::-1]
@@ -681,6 +694,9 @@ class Complejo():
             ax[i].set_ylabel(r"$H_{}$".format(i), rotation="horizontal")
             ax[i].get_yaxis().set_label_coords(-0.035,0.5)
 
+        if not os.path.exists("persistencia/"):
+            os.makedirs("persistencia/")
+            
         fig.savefig("persistencia/perBarras.png", dpi=300)
 
     def betti(self, p, incremental=False):
@@ -756,7 +772,7 @@ class Complejo():
 
 
 if __name__ == "__main__":
-    """
+   
     comp1 = Complejo([(0, 1, 2, 3)])
     print("-------------COMP1-------------")
     analisisComplejo(comp1, set((0, 1)))
@@ -948,7 +964,7 @@ if __name__ == "__main__":
     K = alpha.filtracion(3.6)
     print(f"Los num de Betti del siguiente alpha complejo son: {K.allBettis()}")
     print(f"Los num de Betti del siguiente alpha complejo son (algoritmo incremental): {K.allBettis(incremental=True)}")
-    """
+    
 
     points = np.array([(-2, 2),
                        (1.5, 2.2),
@@ -958,20 +974,25 @@ if __name__ == "__main__":
     alpha = alfaComplejo(points)
 
     vor = drawVor(points)
+    
     i = 0
     images = []
+    if not os.path.exists("imgTemp/"):
+        os.makedirs("imgTemp/")
+            
     for valor in alpha.umbrales():
-        # print(valor)
         K = alpha.filtracion(valor)
         fig = voronoi_plot_2d(vor, show_vertices=False, line_width=2, line_colors='blue', lines_alpha=0.6)
         plotalpha(points, K)
         plt.title(r"$r={}$".format(str(valor)))
-        #fig.savefig(f"imgTemp/im{i}.png", dpi=300)
-        #images.append(imageio.imread(f"imgTemp/im{i}.png"))
+        fig.savefig(f"imgTemp/im{i}.png", dpi=300)
+        images.append(imageio.imread(f"imgTemp/im{i}.png"))
         i += 1
         plt.show()
 
-    #imageio.mimsave('alphaGif/alpha.gif', images)
+    if not os.path.exists("alphaGif/"):
+        os.makedirs("alphaGif/")
+    imageio.mimsave('alphaGif/alpha.gif', images)
 """
 Out[49]:
 (array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
