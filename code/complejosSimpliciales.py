@@ -48,7 +48,7 @@ def puntosCurvaRuido(curva, t, t0, t1, numPuntos=10, mu=0, sigma=0.1):
 def low(v):
     """
     Cálculo del low de una columna. Devuelve -1 si el vector es nulo.
-    
+
     v: np.array.
     """
     for i in range(len(v)-1, -1, -1):
@@ -578,28 +578,32 @@ class Complejo():
         """Cálculo de los puntos del diagrama de persistencia."""
         _, lowsArray = self.algoritmoPersistencia()
         dgm = list()
-        numCarasAntiguo = 0
-        numCarasInicial = len(self.getCarasN(0))
-        for i in range(1, self.dim() + 1):
+        carasVisitadas = []
+        for i in range(0, self.dim()):
             dgmi = list()
             numCaras = len(self.getCarasN(i))
-            j = numCarasInicial
-            while j < numCarasInicial + numCaras:
-                if lowsArray[j] >= 0:
+            j = 0
+            while j < len(lowsArray) and numCaras > 0:
+                if j not in carasVisitadas and lowsArray[j] >= 0 and len(self.carasOrd[lowsArray[j]][0]) == i+1:
                     dgmi.append((self.carasOrd[lowsArray[j]][1], self.carasOrd[j][1]))
+                    numCaras = numCaras - 1
+                    carasVisitadas.append(j)
                     # Marca de que ya se ha muerto su clase de equivalencia
                     lowsArray[lowsArray[j]] = -2
+
                 j = j + 1
 
-            for k in range(numCarasAntiguo, numCarasInicial):
-                if lowsArray[k] == -1:
-                    dgmi.append((self.carasOrd[k][1], math.inf))
+            j = 0
+            while j < len(lowsArray) and numCaras > 0:
+                if j not in carasVisitadas and lowsArray[j] == -1 and len(self.carasOrd[j][0]) == i+1:
+                    dgmi.append((self.carasOrd[j][1], math.inf))
+                    numCaras = numCaras - 1
+                    carasVisitadas.append(j)
                     # Marca de que ya se ha anadido su persistencia
-                    lowsArray[k] = -2
+                    lowsArray[j] = -2
+                j = j + 1
 
             dgm.append(dgmi)
-            numCarasInicial = j
-            numCarasAntiguo = numCarasInicial
 
         return dgm
 
@@ -613,11 +617,10 @@ class Complejo():
         death = list()
         for i in range(len(dmg)):
             dmgi = dmg[i]
-            print(dmgi)
             birthI = np.array([c[0] for c in dmgi if c[1] != math.inf])
             deathI = np.array([c[1] for c in dmgi if c[1] != math.inf])
             infinity.append([c[0] for c in dmgi if c[1] == math.inf])
-            maxDeath = max(maxDeath, int(np.amax(deathI)) + 1)
+            maxDeath = max(maxDeath, int(np.amax(deathI))*1.1 + 1)
             birth.append(birthI)
             death.append(deathI)
 
@@ -639,10 +642,10 @@ class Complejo():
         ax.legend()
         ax.set_xlim(lims)
         ax.set_ylim(ymin=lims[0])
-        
+
         if not os.path.exists("persistencia/"):
             os.makedirs("persistencia/")
-            
+
         fig.savefig("persistencia/perDiag.png", dpi=300)
 
     def codigoBarrasPers(self):
@@ -656,11 +659,10 @@ class Complejo():
         death = list()
         for i in range(len(dmg)):
             dmgi = dmg[i]
-            print(dmgi)
             birthI = np.array([c[0] for c in dmgi if c[1] != math.inf])
             deathI = np.array([c[1] for c in dmgi if c[1] != math.inf])
             infinity.append([c[0] for c in dmgi if c[1] == math.inf])
-            maxDeath = max(maxDeath, int(np.amax(deathI)) + 1)
+            maxDeath = max(maxDeath, int(np.amax(deathI))*1.1 + 1)
             birth.append(birthI)
             death.append(deathI)
 
@@ -669,18 +671,17 @@ class Complejo():
                 birth[i] = np.append(birth[i], np.array(infinity[i]))
                 death[i] = np.append(death[i], np.array([maxDeath for j in range(len(infinity[i]))]))
 
-            #Elimina las parejas que nacen y mueren a la vez
+            # Elimina las parejas que nacen y mueren a la vez
             n = 0
             while n < len(birth[i]):
-                print(i, n, birth[i][n])
                 if birth[i][n] == death[i][n]:
                     birth[i] = np.delete(birth[i], n)
                     death[i] = np.delete(death[i], n)
                     n = n-1
                 n = n+1
-            
+
             diff = death[i] - birth[i]
-            #diff[diff<=0] = 0.005 
+            # diff[diff<=0] = 0.005
             ax[i].barh(y=np.arange(len(birth[i])),
                        width=diff,
                        height=0.2,
@@ -692,11 +693,11 @@ class Complejo():
 
             ax[i].get_yaxis().set_ticks([])
             ax[i].set_ylabel(r"$H_{}$".format(i), rotation="horizontal")
-            ax[i].get_yaxis().set_label_coords(-0.035,0.5)
+            ax[i].get_yaxis().set_label_coords(-0.035, 0.5)
 
         if not os.path.exists("persistencia/"):
             os.makedirs("persistencia/")
-            
+
         fig.savefig("persistencia/perBarras.png", dpi=300)
 
     def betti(self, p, incremental=False):
@@ -772,7 +773,7 @@ class Complejo():
 
 
 if __name__ == "__main__":
-   
+    """
     comp1 = Complejo([(0, 1, 2, 3)])
     print("-------------COMP1-------------")
     analisisComplejo(comp1, set((0, 1)))
@@ -964,7 +965,7 @@ if __name__ == "__main__":
     K = alpha.filtracion(3.6)
     print(f"Los num de Betti del siguiente alpha complejo son: {K.allBettis()}")
     print(f"Los num de Betti del siguiente alpha complejo son (algoritmo incremental): {K.allBettis(incremental=True)}")
-    
+
 
     points = np.array([(-2, 2),
                        (1.5, 2.2),
@@ -974,12 +975,12 @@ if __name__ == "__main__":
     alpha = alfaComplejo(points)
 
     vor = drawVor(points)
-    
+
     i = 0
     images = []
     if not os.path.exists("imgTemp/"):
         os.makedirs("imgTemp/")
-            
+
     for valor in alpha.umbrales():
         K = alpha.filtracion(valor)
         fig = voronoi_plot_2d(vor, show_vertices=False, line_width=2, line_colors='blue', lines_alpha=0.6)
@@ -993,52 +994,4 @@ if __name__ == "__main__":
     if not os.path.exists("alphaGif/"):
         os.makedirs("alphaGif/")
     imageio.mimsave('alphaGif/alpha.gif', images)
-"""
-Out[49]:
-(array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
-
- [-1, -1, -1, -1, -1, 4, 3, 2, 1, -1, -1, -1, 11, 10, 9])
-
-alpha2.matrizBordeGeneralizada()
-Out[50]:
-array([[0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0],
-       [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
-
-    Out[64]:
-[[(0.0, 0.9443119188064927),
-  (0.0, 1.3829316685939332),
-  (0.0, 1.4255612929649848),
-  (0.0, 1.439618004888797)
-  (0.0, inf)],
-
- [(2.068455460956951, 2.068455460956951),
-  (2.0506096654409878, 2.0776755129687805),
-  (1.7528548142958105, 2.148797377140489)]]
-"""
+    """
